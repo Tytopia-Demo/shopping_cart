@@ -17,14 +17,44 @@ permissions:
 
 jobs:
   frogbot-scan:
+    # Runner Selection: ubuntu-latest (2-core) is appropriate for security scanning
+    # Resource requirements: Low CPU, Low Memory, ~5-10 min duration
     runs-on: ubuntu-latest
+    # Timeout to prevent runaway processes and optimize runner allocation
+    timeout-minutes: 15
     strategy:
       matrix:
         branch: ["master"]
     steps:
+      # Resource monitoring: Track workflow start time
+      - name: Log workflow start and resources
+        run: |
+          echo "=== Workflow Resource Monitoring ==="
+          echo "Job started at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "Runner OS: ${{ runner.os }}"
+          echo "Runner architecture: ${{ runner.arch }}"
+          echo "=== System Resources ==="
+          echo "CPU cores: $(nproc)"
+          echo "Memory: $(free -h | grep Mem | awk '{print $2}')"
+          echo "Disk space: $(df -h / | tail -1 | awk '{print $4}')"
+
       - uses: jfrog/frogbot@v2
         env:
           JF_URL: ${{ secrets.JF_URL }}
           JF_ACCESS_TOKEN: ${{ secrets.JF_ACCESS_TOKEN }}
           JF_GIT_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           JF_GIT_BASE_BRANCH: ${{ matrix.branch }}
+
+      # Resource monitoring: Track completion and resource usage
+      - name: Log workflow completion and resource usage
+        if: always()
+        run: |
+          echo "=== Workflow Completion ==="
+          echo "Job completed at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "=== Final Resource Usage ==="
+          echo "Memory usage:"
+          free -h
+          echo "Disk usage:"
+          df -h /
+          echo "Load average:"
+          uptime

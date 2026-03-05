@@ -1,0 +1,116 @@
+name: Runner Usage Audit
+
+# This workflow periodically audits runner usage across workflows
+# to identify optimization opportunities
+
+on:
+  schedule:
+    # Run weekly on Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  audit-runner-usage:
+    name: Audit Runner Resource Usage
+    # Runner Selection: ubuntu-latest (2-core) sufficient for audit tasks
+    # Resource requirements: Low CPU, Low Memory, ~5 min duration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Log audit start
+        run: |
+          echo "=== Runner Usage Audit ==="
+          echo "Audit started at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "Reporting period: Last 7 days"
+
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Analyze workflow files
+        run: |
+          echo "=== Workflow Analysis ==="
+          echo ""
+          echo "Analyzing workflow files in .github/workflows/..."
+
+          for workflow in .github/workflows/*.yml; do
+            echo ""
+            echo "📄 Workflow: $(basename $workflow)"
+
+            # Check for timeout-minutes
+            if grep -q "timeout-minutes:" "$workflow"; then
+              echo "  ✅ Has timeout configuration"
+            else
+              echo "  ⚠️  Missing timeout configuration"
+            fi
+
+            # Check for resource monitoring
+            if grep -q "free -h\|nproc\|Resource Monitoring" "$workflow"; then
+              echo "  ✅ Has resource monitoring"
+            else
+              echo "  ⚠️  Missing resource monitoring"
+            fi
+
+            # Check runner types
+            runners=$(grep "runs-on:" "$workflow" | awk '{print $2}' | sort -u)
+            echo "  🖥️  Runner types used: $runners"
+
+            # Check for matrix strategy
+            if grep -q "matrix:" "$workflow"; then
+              echo "  ✅ Uses parallelization (matrix strategy)"
+            else
+              echo "  ℹ️  No matrix parallelization"
+            fi
+          done
+
+      - name: Generate recommendations
+        run: |
+          echo ""
+          echo "=== Optimization Recommendations ==="
+          echo ""
+
+          # Count workflows
+          total_workflows=$(ls -1 .github/workflows/*.yml 2>/dev/null | wc -l)
+          echo "📊 Total workflows: $total_workflows"
+
+          # Check for timeouts
+          workflows_with_timeout=$(grep -l "timeout-minutes:" .github/workflows/*.yml 2>/dev/null | wc -l)
+          echo "⏱️  Workflows with timeouts: $workflows_with_timeout/$total_workflows"
+
+          # Check for resource monitoring
+          workflows_with_monitoring=$(grep -l "free -h\|nproc\|Resource Monitoring" .github/workflows/*.yml 2>/dev/null | wc -l)
+          echo "📈 Workflows with resource monitoring: $workflows_with_monitoring/$total_workflows"
+
+          echo ""
+          echo "💡 Recommendations:"
+          if [ $workflows_with_timeout -lt $total_workflows ]; then
+            echo "  • Add timeout-minutes to $((total_workflows - workflows_with_timeout)) workflow(s)"
+          fi
+          if [ $workflows_with_monitoring -lt $total_workflows ]; then
+            echo "  • Add resource monitoring to $((total_workflows - workflows_with_monitoring)) workflow(s)"
+          fi
+          echo "  • Review runner types quarterly to ensure optimal sizing"
+          echo "  • Consider matrix strategies for parallelizable jobs"
+          echo "  • Enable dependency caching where applicable"
+
+      - name: Check for runner auto-scaling configuration
+        run: |
+          echo ""
+          echo "=== Runner Configuration ==="
+          echo "ℹ️  This repository uses GitHub-hosted runners"
+          echo "ℹ️  Auto-scaling is managed by GitHub"
+          echo "ℹ️  For self-hosted runners, configure auto-scaling separately"
+
+      - name: Summary report
+        run: |
+          echo ""
+          echo "=== Audit Summary ==="
+          echo "Audit completed at: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo ""
+          echo "✅ Audit completed successfully"
+          echo "📋 Review the logs above for detailed recommendations"
+          echo "📚 See .github/RUNNER_GUIDELINES.md for best practices"
