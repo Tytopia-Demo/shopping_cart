@@ -21,3 +21,34 @@ doc/
 .ruby-*
 .secret
 #*#
+
+# Rails credentials and secrets
+config/secrets.yml
+config/master.key
+config/credentials/*.key
+
+# Environment/secret files
+.env
+.env.*
+
+# Test artifacts
+coverage/
+rerun.txt
+capybara-*.html
+capybara_screenshots/
+spec/reports/
+
+# Sass/SCSS cache
+.sass-cache/
+
+# Spring preloader
+spring/
+
+# Byebug history
+.byebug_history
+
+# OS artifacts
+Thumbs.db
+
+# ctags
+tags
